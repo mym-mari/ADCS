@@ -8,6 +8,9 @@ import params as P
 from common import quat as Q
 from interfaces import TruthState, SensorPacket, ActuatorCmd
 
+# Sesgo constante del magnetometro (T). Si no esta en params.py, usa este valor.
+MAG_BIAS_STD = getattr(P, "MAG_BIAS_STD", 5e-7)
+
 # Campo magnetico: dipolo inclinado, fijo a la Tierra (rota con OMEGA_E)
 B0 = 3.12e-5                               # T, ecuador en la superficie
 _TH = np.deg2rad(9.3)                      # colatitud del polo geomagnetico norte
@@ -72,6 +75,7 @@ class Plant:
         self.t = 0.0
         self.cmd = ActuatorCmd()
         self.gyro_bias = self.rng.normal(0.0, P.GYRO_BIAS0_STD, 3)
+        self.mag_bias = self.rng.normal(0.0, MAG_BIAS_STD, 3)   # T, en B, constante
         return self.truth()
 
     def step(self, cmd, dt=P.DT_PLANT):
@@ -99,7 +103,7 @@ class Plant:
         A = Q.dcm(x[6:10])
         ecl = in_eclipse(x[0:3], sun_eci(self.t))
 
-        mag = A @ b_eci(self.t, x[0:3]) + rng.normal(0.0, P.MAG_NOISE_STD, 3)
+        mag = A @ b_eci(self.t, x[0:3]) + self.mag_bias + rng.normal(0.0, P.MAG_NOISE_STD, 3)
         mag = np.round(mag / P.MAG_QUANT) * P.MAG_QUANT
 
         if ecl:
@@ -176,7 +180,7 @@ if __name__ == "__main__":
     ang = np.degrees(np.arccos(r0 @ pl.x[0:3] / (np.linalg.norm(r0) * np.linalg.norm(pl.x[0:3]))))
     print(f"Radio: min {min(rs) / 1e3:.1f} km, max {max(rs) / 1e3:.1f} km (esperado ~6878)")
     print(f"|B|: min {min(bs) * 1e6:.1f} uT, max {max(bs) * 1e6:.1f} uT (esperado ~25 a 50)")
-    print(f"Fraccion en eclipse: {100 * ecl / n:.1f} % (esperado ~35 % con el Sol en el plano orbital)")
+    print(f"Fraccion en eclipse: {100 * ecl / n:.1f} % (esperado ~37.8 %)")
     print(f"Angulo de regreso tras 1 periodo: {ang:.2f} deg (pequeno)")
 
     # 2) Conservacion del momento angular total (sin gradiente, sin magnetorquers)
