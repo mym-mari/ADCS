@@ -84,8 +84,10 @@ print(f"[{'OK' if bias_err < 1e-8 else 'FALLA'}] Magnetometro, sesgo estimado vs
       f"(sesgo aplicado {np.linalg.norm(pl.mag_bias):.2e} T, sigma de sesgo {MAG_BIAS_STD:.1e} T)")
 results.append(bias_err < 1e-8)
 
+# El ruido se mide DESPUES de quitar la media de cada eje (el sesgo es distinto por eje)
 mag_std_teo = np.sqrt(P.MAG_NOISE_STD ** 2 + P.MAG_QUANT ** 2 / 12.0)
-results.append(check("Magnetometro, desviacion del ruido", mag_res.std(), mag_std_teo, 0.05, "T"))
+mag_noise = (mag_res - mag_res.mean(axis=0)).std()
+results.append(check("Magnetometro, desviacion del ruido", mag_noise, mag_std_teo, 0.05, "T"))
 
 results.append(check("Sensor solar, error angular rms", np.sqrt(np.mean(np.square(sun_ang))),
                      np.sqrt(2.0) * P.SUN_NOISE_STD, 0.10, "rad"))
